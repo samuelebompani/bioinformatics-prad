@@ -9,6 +9,7 @@ if (!require("BiocManager", quietly = TRUE))
 BiocManager::install("curatedTCGAData");
 BiocManager::install("TCGAutils");
 BiocManager::install("TCGAbiolinks");
+BiocManager::install("NetPreProc");
 
 install.packages("SNFtool");
 install.packages("caret");
@@ -22,13 +23,14 @@ Now we can load the packages:
 library("curatedTCGAData");
 library("TCGAbiolinks");
 library("TCGAutils");
+library("NetPreProc");
 library("SNFtool");
 library("caret");
 library("cluster"); #pam
 library("mclustcomp");
 ```
 
-# Multi-omics data
+# Multi-omics data (1)
 
 Download the dataset:
 
@@ -42,9 +44,9 @@ mo <- mo[, , paste0("PRAD", "_", assays, "-20160128")];
 mo;
 ```
 
-Filtering:
+# Filtering (2)
 
-```{r}
+```{r warning=FALSE}
 primary <- TCGAutils::TCGAsampleSelect(colnames(mo), c("01"));
 mo <- mo[, primary, ];
 
@@ -76,7 +78,7 @@ complete <- lapply(complete, FUN=t)
 # Remove features having NAs (present only in proteomics data):
 complete[[3]] <- complete[[3]][, colSums(is.na(complete[[3]])) == 0];
 
-# Remove features with near zero variance and retain top 500 features 
+# Remove features with near zero variance and retain top 100 features 
 # having higher variance:
 nf <- 100;
 for(i in 1:length(complete)){
@@ -113,7 +115,7 @@ for(v in 1:length(complete)){
     rownames(complete[[v]]) <- substr(rownames(complete[[v]]), 1, 12);
 }
 ```
-# Download the desease subtypes
+# Download the desease subtypes (3 - 4)
 
 ```{r}
 # Download disease subtypes from TCGAbiolinks:
@@ -135,3 +137,39 @@ subtypes <- subtypes[rownames(complete[[1]]),];
 table(subtypes$Subtype_Integrative);
 
 ```
+
+# Similarity Network Fusion (5)
+
+```{r}
+# Compute similarity matrix for each data source using the scaled
+# exponential euclidean distance:
+W_list <- list();
+for(i in 1:length(complete)){
+    Dist <- (dist2(as.matrix(complete[[i]]), as.matrix(complete[[i]])))^(1/2);
+    W_list[[i]] <- affinityMatrix(Dist);
+}
+    
+# Integration of multi-omics data using Similarity Network Fusion:
+# t is the number of iterations and K is the number of neighbours to 
+# consider to compute the local similarity matrix:
+W_int <- SNF(W_list, K=20, t=20);
+```
+
+# Mean Fusion (6)
+
+```{r}
+class(complete$`PRAD_RNASeq2Gene-20160128`);
+M_mean <- Reduce("+", complete) / length(complete);
+```
+
+# (7)
+
+# PAM (8)
+```{r}
+dist <- 1 - NetPreProc::Prob.norm(W_list[[1]]);
+
+# Apply clustering algorithms on integrated matrix:
+k <- length(unique(subtypes$Subtype_Integrative));
+pam.res <- pam(dist, k=k, diss=TRUE);
+```
+
