@@ -1,3 +1,5 @@
+# Install and load packages
+
 Install of all the required packages for the project:
 
 ```{r}
@@ -26,9 +28,17 @@ library("cluster"); #pam
 library("mclustcomp");
 ```
 
+# Multi-omics data 
+
 Download the dataset:
 
 ```{r}
+assays <- c("miRNASeqGene", "RNASeq2Gene", "RPPAArray");
+mo <- curatedTCGAData(diseaseCode = "PRAD", 
+                        assays = assays, 
+                        version = "2.0.1", dry.run = FALSE);
 
-
+mo <- mo[, , paste0("PRAD", "_", assays, "-20160128")];
+mo;
 ```
+
