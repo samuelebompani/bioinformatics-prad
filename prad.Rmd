@@ -1,0 +1,34 @@
+Install of all the required packages for the project:
+
+```{r}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("curatedTCGAData");
+BiocManager::install("TCGAutils");
+BiocManager::install("TCGAbiolinks");
+
+install.packages("SNFtool");
+install.packages("caret");
+install.packages("cluster");
+install.packages("mclustcomp");
+```
+
+Load the packages:
+
+```{r}
+library("curatedTCGAData");
+library("TCGAbiolinks");
+library("TCGAutils");
+library("SNFtool");
+library("caret");
+library("cluster"); #pam
+library("mclustcomp");
+```
+
+Download the dataset:
+
+```{r}
+
+
+```
