@@ -41,3 +41,97 @@ mo <- curatedTCGAData(diseaseCode = "PRAD",
 mo <- mo[, , paste0("PRAD", "_", assays, "-20160128")];
 mo;
 ```
+
+Filtering:
+
+```{r}
+primary <- TCGAutils::TCGAsampleSelect(colnames(mo), c("01"));
+mo <- mo[, primary, ];
+
+# Check for replicates (anyReplicated checks the so called biological or 
+# primary unit in the sampleMap of the MultiAssayExperiment object, that
+# corresponds to the first 12 characters of the barcodes for TCGA data):
+check_rep <- anyReplicated(mo);
+print(check_rep);
+
+```
+```{r}
+# The information regarding if the sample is FFPE is stored in the clinical data,
+# which are accessible using colData(). 
+no_ffpe <- which(as.data.frame(colData(mo))$patient.samples.sample.is_ffpe == "no");
+mo <- mo[, no_ffpe, ];
+
+# Obtain samples having all the considered omics:
+complete <- intersectColumns(mo);
+
+# Extract assays in list:
+complete <- assays(complete);
+
+# Obtain matrices samples x features:
+complete <- lapply(complete, FUN=t)
+
+```
+
+```{r}
+# Remove features having NAs (present only in proteomics data):
+complete[[3]] <- complete[[3]][, colSums(is.na(complete[[3]])) == 0];
+
+# Remove features with near zero variance and retain top 500 features 
+# having higher variance:
+nf <- 100;
+for(i in 1:length(complete)){
+    
+    idx <- caret::nearZeroVar(complete[[i]])
+    message(paste("Removed ", length(idx), "features from", names(complete)[i]));
+    if(length(idx) != 0){
+        complete[[i]] <- complete[[i]][, -idx];
+    }
+
+    if(ncol(complete[[i]]) <= nf) next
+    
+    vars <- apply(complete[[i]], 2, var);
+    idx <- sort(vars, index.return=TRUE, decreasing = TRUE)$ix;
+    
+    complete[[i]] <- complete[[i]][, idx[1:nf]];
+    
+}
+
+# Perform features standardization using z-score:
+zscore <- function(data){
+    
+    zscore_vec <- function(x) { return ((x - mean(x)) / sd(x))}
+    data <- apply(data, 2, zscore_vec)
+    
+    
+    return(data)
+}
+
+complete <- lapply(complete, zscore);
+
+# Clean barcodes retaining only "Project-TSS-Participant":
+for(v in 1:length(complete)){
+    rownames(complete[[v]]) <- substr(rownames(complete[[v]]), 1, 12);
+}
+```
+# Download the desease subtypes
+
+```{r}
+# Download disease subtypes from TCGAbiolinks:
+subtypes <- as.data.frame(TCGAbiolinks::PanCancerAtlas_subtypes());
+subtypes <- subtypes[subtypes$cancer.type == "PRAD", ];
+
+# Remove all the rows with a Nan value in the Subtype_Integrative column
+subtypes <- subtypes[!is.na(subtypes$Subtype_Integrative),];
+
+# Retain only primary solid tumors and select samples in common with omics data
+# (in the same order):
+subtypes <- subtypes[TCGAutils::TCGAsampleSelect(subtypes$pan.samplesID, "01"), ];
+sub_select <- substr(subtypes$pan.samplesID,1,12) %in% rownames(complete[[1]]);
+subtypes <- subtypes[sub_select, ];
+rownames(subtypes) <- substr(subtypes$pan.samplesID, 1, 12);
+subtypes <- subtypes[rownames(complete[[1]]),];
+
+# Print number of samples for each subtype:
+table(subtypes$Subtype_Integrative);
+
+```
