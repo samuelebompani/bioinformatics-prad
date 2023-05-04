@@ -1,6 +1,6 @@
 # Install and load packages
 
-Install of all the required packages for the project:
+First of all, we need to install all the packages needed for this lesson (it will take a while):
 
 ```{r}
 if (!require("BiocManager", quietly = TRUE))
@@ -16,7 +16,7 @@ install.packages("cluster");
 install.packages("mclustcomp");
 ```
 
-Load the packages:
+Now we can load the packages:
 
 ```{r}
 library("curatedTCGAData");
@@ -28,7 +28,7 @@ library("cluster"); #pam
 library("mclustcomp");
 ```
 
-# Multi-omics data 
+# Multi-omics data
 
 Download the dataset:
 
@@ -41,4 +41,3 @@ mo <- curatedTCGAData(diseaseCode = "PRAD",
 mo <- mo[, , paste0("PRAD", "_", assays, "-20160128")];
 mo;
 ```
-
