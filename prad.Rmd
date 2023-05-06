@@ -8,13 +8,18 @@ if (!require("BiocManager", quietly = TRUE))
 
 BiocManager::install("curatedTCGAData");
 BiocManager::install("TCGAutils");
-BiocManager::install("TCGAbiolinks");
+# BiocManager::install("BioinformaticsFMRP/TCGAbiolinks")
+BiocManager::install("TCGAbiolinks")
 BiocManager::install("NetPreProc");
 
 install.packages("SNFtool");
 install.packages("caret");
 install.packages("cluster");
 install.packages("mclustcomp");
+
+# [GROUP]
+install.packages("devtools");
+devtools::install_github('Shamir-Lab/NEMO/NEMO');
 ```
 
 Now we can load the packages:
@@ -28,6 +33,7 @@ library("SNFtool");
 library("caret");
 library("cluster"); #pam
 library("mclustcomp");
+library("NEMO")
 ```
 
 # Multi-omics data (1)
@@ -57,6 +63,7 @@ check_rep <- anyReplicated(mo);
 print(check_rep);
 
 ```
+
 ```{r}
 # The information regarding if the sample is FFPE is stored in the clinical data,
 # which are accessible using colData(). 
@@ -115,6 +122,7 @@ for(v in 1:length(complete)){
     rownames(complete[[v]]) <- substr(rownames(complete[[v]]), 1, 12);
 }
 ```
+
 # Download the desease subtypes (3 - 4)
 
 ```{r}
@@ -152,24 +160,43 @@ for(i in 1:length(complete)){
 # Integration of multi-omics data using Similarity Network Fusion:
 # t is the number of iterations and K is the number of neighbours to 
 # consider to compute the local similarity matrix:
-W_int <- SNF(W_list, K=20, t=20);
+M_snf <- SNF(W_list, K=20, t=20)
 ```
 
 # Mean Fusion (6)
 
 ```{r}
-class(complete$`PRAD_RNASeq2Gene-20160128`);
-M_mean <- Reduce("+", complete) / length(complete);
+# Do not use 'complete', but 'W_list' because the former is the raw data, the latter are the similarity (square) matrices.
+M_mean <- Reduce("+", W_list) / length(W_list)
 ```
 
-# (7)
+# NEMO (7)
+
+```{r}
+# ??? nemo.affinity.graph was the only function returning an object of the right type.
+M_nemo <- nemo.affinity.graph(complete)
+```
 
 # PAM (8)
-```{r}
-dist <- 1 - NetPreProc::Prob.norm(W_list[[1]]);
 
-# Apply clustering algorithms on integrated matrix:
+```{r}
 k <- length(unique(subtypes$Subtype_Integrative));
+
+# a
+for (i in 1:3) {
+	dist <- 1 - NetPreProc::Prob.norm(W_list[[i]]);
+	pam.res <- pam(dist, k=k, diss=TRUE);	
+}
+
+# b
+dist <- 1 - NetPreProc::Prob.norm(M_mean);
+pam.res <- pam(dist, k=k, diss=TRUE);
+
+# c
+# 'diss' should be FALSE because SNF computes a similarity matrix, not a dissimilarity (aka distance) matrix.
+pam.res <- pam(M_snf, k=k, diff=FALSE);
+
+# d
+dist <- 1 - NetPreProc::Prob.norm(M_nemo);
 pam.res <- pam(dist, k=k, diss=TRUE);
 ```
-
