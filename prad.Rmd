@@ -166,7 +166,8 @@ M_snf <- SNF(W_list, K=20, t=20)
 # Mean Fusion (6)
 
 ```{r}
-# Do not use 'complete', but 'W_list' because the former is the raw data, the latter are the similarity (square) matrices.
+# Do not use 'complete', but 'W_list' because the former is the raw data,
+# the latter are the similarity (square) matrices.
 M_mean <- Reduce("+", W_list) / length(W_list)
 ```
 
@@ -174,29 +175,57 @@ M_mean <- Reduce("+", W_list) / length(W_list)
 
 ```{r}
 # ??? nemo.affinity.graph was the only function returning an object of the right type.
-M_nemo <- nemo.affinity.graph(complete)
+# this choice can me motivated by the fact that point 10 asks explicitly to use the
+# 'clustering' function.
+M_nemo <- nemo.affinity.graph(complete, k=20)
 ```
 
 # PAM (8)
 
 ```{r}
 k <- length(unique(subtypes$Subtype_Integrative));
+clusterings = list();
 
 # a
 for (i in 1:3) {
 	dist <- 1 - NetPreProc::Prob.norm(W_list[[i]]);
-	pam.res <- pam(dist, k=k, diss=TRUE);	
+	res <- pam(dist, k=k, diss=TRUE);
+	clusterings <- append(clusterings, list(res));
 }
 
 # b
 dist <- 1 - NetPreProc::Prob.norm(M_mean);
-pam.res <- pam(dist, k=k, diss=TRUE);
+res <- pam(dist, k=k, diss=TRUE);
+clusterings <- append(clusterings, list(res));
 
 # c
-# 'diss' should be FALSE because SNF computes a similarity matrix, not a dissimilarity (aka distance) matrix.
-pam.res <- pam(M_snf, k=k, diff=FALSE);
+# 'diss' should be FALSE because SNF computes a similarity matrix,
+# not a dissimilarity (aka distance) matrix. BUT if we don't put
+# diss=TRUE then the number of medoids is huge...???
+res <- pam(M_snf, k=k, diss=TRUE);
+clusterings <- append(clusterings, list(res));
 
 # d
 dist <- 1 - NetPreProc::Prob.norm(M_nemo);
-pam.res <- pam(dist, k=k, diss=TRUE);
+res <- pam(dist, k=k, diss=TRUE);
+clusterings <- append(clusterings, list(res));
+```
+
+```{r}
+for (i in 1:length(clusterings)) {
+	print(clusterings[[i]]$medoids)
+}
+```
+
+# NEMO clustering (9)
+
+```{r}
+
+```
+
+# Spectral clustering (10)
+
+```{r}
+# ?????????? no clue what is going on
+SNFtool::spectralClustering(M_snf, K=k)
 ```
