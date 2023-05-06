@@ -220,12 +220,17 @@ for (i in 1:length(clusterings)) {
 # NEMO clustering (9)
 
 ```{r}
-
+M_nemo_clustering <- nemo.clustering(complete)
 ```
 
 # Spectral clustering (10)
 
 ```{r}
 # ?????????? no clue what is going on
-SNFtool::spectralClustering(M_snf, K=k)
+M_spectral <- SNFtool::spectralClustering(M_snf, K=k)
+```
+
+```{r}
+print(length(M_nemo_clustering));
+print(length(M_spectral))
 ```
