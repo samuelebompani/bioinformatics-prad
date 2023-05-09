@@ -178,6 +178,20 @@ M_mean <- Reduce("+", W_list) / length(W_list)
 # this choice can me motivated by the fact that point 10 asks explicitly to use the
 # 'clustering' function.
 M_nemo <- nemo.affinity.graph(complete, k=20)
+M_nemo_2 <- nemo.clustering(complete, num.neighbors=20)
+```
+```{r}
+# k can also be set to NA, in which case nemo chooses its value.
+# nemo.affinity.graph is the integrated affinity graph.
+affinity.graph = nemo.affinity.graph(complete, k = 20)
+
+# ask nemo to estimate the number of clusters.
+num.clusters = nemo.num.clusters(affinity.graph)
+
+# clustering is the cluster assignment vector, ordered by the columns of affinity.graph.
+clustering = spectralClustering(affinity.graph, num.clusters)
+names(clustering) = colnames(affinity.graph)
+
 ```
 
 # PAM (8)
@@ -202,19 +216,13 @@ clusterings <- append(clusterings, list(res));
 # 'diss' should be FALSE because SNF computes a similarity matrix,
 # not a dissimilarity (aka distance) matrix. BUT if we don't put
 # diss=TRUE then the number of medoids is huge...???
-res <- pam(M_snf, k=k, diss=TRUE);
+res <- pam(M_snf, k=k, diss=FALSE);
 clusterings <- append(clusterings, list(res));
 
 # d
 dist <- 1 - NetPreProc::Prob.norm(M_nemo);
-res <- pam(dist, k=k, diss=TRUE);
+res <- pam(dist, k=k, diss=FALSE);
 clusterings <- append(clusterings, list(res));
-```
-
-```{r}
-for (i in 1:length(clusterings)) {
-	print(clusterings[[i]]$medoids)
-}
 ```
 
 # NEMO clustering (9)
@@ -234,3 +242,11 @@ M_spectral <- SNFtool::spectralClustering(M_snf, K=k)
 print(length(M_nemo_clustering));
 print(length(M_spectral))
 ```
+
+# Graphs (11)
+
+# Domande per Jessica
+
+- Nemo non funziona aiutoooo.
+- Spectral cose wtf a cosa serve.
+- Basta per ora.
