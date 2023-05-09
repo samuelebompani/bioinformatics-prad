@@ -171,25 +171,8 @@ M_mean <- Reduce("+", W_list) / length(W_list)
 # NEMO (7)
 
 ```{r}
-# ??? nemo.affinity.graph was the only function returning an object of the right type.
-# this choice can me motivated by the fact that point 10 asks explicitly to use the
-# 'clustering' function.
-M_nemo <- nemo.affinity.graph(complete, k=20)
-M_nemo_2 <- nemo.clustering(complete, num.neighbors=20)
-```
-
-```{r}
-# k can also be set to NA, in which case nemo chooses its value.
-# nemo.affinity.graph is the integrated affinity graph.
-affinity.graph = nemo.affinity.graph(complete, k = 20)
-
-# ask nemo to estimate the number of clusters.
-num.clusters = nemo.num.clusters(affinity.graph)
-
-# clustering is the cluster assignment vector, ordered by the columns of affinity.graph.
-clustering = spectralClustering(affinity.graph, num.clusters)
-names(clustering) = colnames(affinity.graph)
-
+M_nemo <- nemo.affinity.graph(W_list, k=20)
+# M_nemo_2 <- nemo.clustering(complete, num.neighbors=20)
 ```
 
 # PAM (8)
@@ -226,27 +209,25 @@ clusterings <- append(clusterings, list(res));
 # NEMO clustering (9)
 
 ```{r}
-M_nemo_clustering <- nemo.clustering(complete)
+M_nemo_clustering <- nemo.clustering(W_list)
 ```
 
 # Spectral clustering (10)
 
 ```{r}
-# ?????????? no clue what is going on
 M_spectral <- SNFtool::spectralClustering(M_snf, K=k)
-```
-
-```{r}
-print(length(M_nemo_clustering));
-print(length(M_spectral))
 ```
 
 # Graphs (11)
 
-# Domande per Jessica
+```{r}
+# Covert disease subtypes to numeric vector:
+labels <- as.numeric(factor(subtypes$Subtype_Selected, levels=unique(subtypes$Subtype_Selected)));
 
--   Nemo non funziona aiutoooo.
--   Spectral cose wtf a cosa serve.
--   Basta per ora.
-
-Buongiorno
+# Compute measures:
+# types <- c("rand", "adjrand", "nmi1");
+for (clustering in clusterings) {
+	metrics.pam <- mclustcomp(clustering$clustering, labels); # types=types
+	print(as.data.frame(metrics.pam))
+}
+```
