@@ -11,15 +11,12 @@ BiocManager::install("TCGAutils");
 # BiocManager::install("BioinformaticsFMRP/TCGAbiolinks")
 BiocManager::install("TCGAbiolinks")
 BiocManager::install("NetPreProc");
+BiocManager::install("NEMO"); # [GROUP]
 
 install.packages("SNFtool");
 install.packages("caret");
 install.packages("cluster");
 install.packages("mclustcomp");
-
-# [GROUP]
-install.packages("devtools");
-devtools::install_github('Shamir-Lab/NEMO/NEMO');
 ```
 
 Now we can load the packages:
@@ -180,6 +177,7 @@ M_mean <- Reduce("+", W_list) / length(W_list)
 M_nemo <- nemo.affinity.graph(complete, k=20)
 M_nemo_2 <- nemo.clustering(complete, num.neighbors=20)
 ```
+
 ```{r}
 # k can also be set to NA, in which case nemo chooses its value.
 # nemo.affinity.graph is the integrated affinity graph.
@@ -247,6 +245,8 @@ print(length(M_spectral))
 
 # Domande per Jessica
 
-- Nemo non funziona aiutoooo.
-- Spectral cose wtf a cosa serve.
-- Basta per ora.
+-   Nemo non funziona aiutoooo.
+-   Spectral cose wtf a cosa serve.
+-   Basta per ora.
+
+Buongiorno
