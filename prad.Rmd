@@ -17,6 +17,7 @@ install.packages("SNFtool");
 install.packages("caret");
 install.packages("cluster");
 install.packages("mclustcomp");
+install.packages("factoextra");
 ```
 
 Now we can load the packages:
@@ -30,7 +31,8 @@ library("SNFtool");
 library("caret");
 library("cluster"); #pam
 library("mclustcomp");
-library("NEMO")
+library("NEMO");
+library("factoextra");
 ```
 
 # Multi-omics data (1)
@@ -197,13 +199,29 @@ clusterings <- append(clusterings, list(res));
 # 'diss' should be FALSE because SNF computes a similarity matrix,
 # not a dissimilarity (aka distance) matrix. BUT if we don't put
 # diss=TRUE then the number of medoids is huge...???
-res <- pam(M_snf, k=k, diss=FALSE);
+res <- pam(M_snf, k=k, diss=TRUE);
 clusterings <- append(clusterings, list(res));
 
 # d
 dist <- 1 - NetPreProc::Prob.norm(M_nemo);
-res <- pam(dist, k=k, diss=FALSE);
-clusterings <- append(clusterings, list(res));
+res <- pam(dist, k=k, diss=TRUE);
+clusterings <- append(clusterings, list(res))
+```
+
+```{r}
+print("1")
+print(clusterings[[1]]$medoids)
+print("2")
+print(clusterings[[2]]$medoids)
+print("3")
+print(clusterings[[3]]$medoids)
+
+print("4")
+print(clusterings[[4]]$medoids)
+print("5")
+print(clusterings[[5]]$medoids)
+print("6")
+print(clusterings[[6]]$medoids)
 ```
 
 # NEMO clustering (9)
@@ -222,12 +240,22 @@ M_spectral <- SNFtool::spectralClustering(M_snf, K=k)
 
 ```{r}
 # Covert disease subtypes to numeric vector:
-labels <- as.numeric(factor(subtypes$Subtype_Selected, levels=unique(subtypes$Subtype_Selected)));
+labels <- as.numeric(factor(subtypes$Subtype_Integrative, levels=unique(subtypes$Subtype_Integrative)));
 
 # Compute measures:
-# types <- c("rand", "adjrand", "nmi1");
+types <- c("rand", "adjrand", "nmi1");
 for (clustering in clusterings) {
-	metrics.pam <- mclustcomp(clustering$clustering, labels); # types=types
+	metrics.pam <- mclustcomp(clustering$clustering, labels, types=types);
 	print(as.data.frame(metrics.pam))
 }
+```
+
+```{r}
+
+# dist <- 1 - NetPreProc::Prob.norm(W_list[[1]]);
+# pam.res <- pam(dist, 3);
+
+dist <- 1 - NetPreProc::Prob.norm(M_nemo);
+res <- pam(dist, k=k);
+fviz_cluster(res)
 ```
