@@ -141,8 +141,7 @@ rownames(subtypes) <- substr(subtypes$pan.samplesID, 1, 12);
 subtypes <- subtypes[rownames(complete[[1]]),];
 
 # Print number of samples for each subtype:
-table(subtypes$Subtype_Integrative);
-
+table(subtypes$Subtype_Integrative)
 ```
 
 # Similarity Network Fusion (5)
@@ -180,7 +179,7 @@ M_nemo <- nemo.affinity.graph(W_list, k=20)
 # PAM (8)
 
 ```{r}
-k <- length(unique(subtypes$Subtype_Integrative));
+k <- length(unique(na.omit(subtypes$Subtype_Integrative)));
 clusterings = list();
 
 # a
@@ -250,12 +249,6 @@ for (clustering in clusterings) {
 }
 ```
 
-```{r}
-
-# dist <- 1 - NetPreProc::Prob.norm(W_list[[1]]);
-# pam.res <- pam(dist, 3);
-
-dist <- 1 - NetPreProc::Prob.norm(M_nemo);
-res <- pam(dist, k=k);
-fviz_cluster(res)
-```
+1.  Un barplot per ogni clustering in cui per ogni subtype indichiamo quante persone sono in quel subtype, comparando con i risultati di iCluster.
+2.  Tabelle tabelle tabelle
+3.  Cluster plot mappando su 2 dimensioni (t-SNE???????)
