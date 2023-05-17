@@ -198,29 +198,27 @@ clusterings <- append(clusterings, list(res));
 # 'diss' should be FALSE because SNF computes a similarity matrix,
 # not a dissimilarity (aka distance) matrix. BUT if we don't put
 # diss=TRUE then the number of medoids is huge...???
+dist <- 1 - NetPreProc::Prob.norm(M_snf);
 res <- pam(M_snf, k=k, diss=TRUE);
 clusterings <- append(clusterings, list(res));
 
 # d
 dist <- 1 - NetPreProc::Prob.norm(M_nemo);
 res <- pam(dist, k=k, diss=TRUE);
-clusterings <- append(clusterings, list(res))
+clusterings <- append(clusterings, list(res));
+
+names(clusterings) <- list("miRNASeqGene", "RNASeq2Gene", "RPPAArray", "mean", "snf", "nemo")
 ```
 
 ```{r}
-print("1")
-print(clusterings[[1]]$medoids)
-print("2")
-print(clusterings[[2]]$medoids)
-print("3")
-print(clusterings[[3]]$medoids)
 
-print("4")
-print(clusterings[[4]]$medoids)
-print("5")
-print(clusterings[[5]]$medoids)
-print("6")
-print(clusterings[[6]]$medoids)
+print(clusterings$miRNASeqGene$medoids)
+print(clusterings$RNASeq2Gene$medoids)
+print(clusterings$RPPAArray$medoids)
+
+print(clusterings$mean$medoids)
+print(clusterings$snf$medoids)
+print(clusterings$nemo$medoids)
 ```
 
 # NEMO clustering (9)
@@ -238,6 +236,8 @@ M_spectral <- SNFtool::spectralClustering(M_snf, K=k)
 # Graphs (11)
 
 ```{r}
+par(mfrow = c(2:3))
+
 # Covert disease subtypes to numeric vector:
 labels <- as.numeric(factor(subtypes$Subtype_Integrative, levels=unique(subtypes$Subtype_Integrative)));
 
@@ -254,11 +254,23 @@ for (clustering in clusterings) {
 3.  Cluster plot mappando su 2 dimensioni (t-SNE???????)
 
 ```{r}
-par(mfrow = c(2, 3))
+oldp <- par(mar=c(5.1, 8.1, 2.1, 1.1))
 
-for (clustering in clusterings) {
-	barplot(table(clustering$clustering),
-		col = c("#5D2A42", "#FB6376", "#FCB1A6"),
-		main = "AAAA")
-}
+data <- matrix(nrow = k, ncol = length(clusterings))
+for (i in 1:length(clusterings))
+	data[,i] <- as.vector(table(clusterings[[i]]$clustering))
+
+barplot(data, names.arg = names(clusterings), horiz=TRUE, las=1,
+	col = c("#5D2A42", "#FB6376", "#FCB1A6"),
+	main = "Patient distribution in clusters")
+
+par(oldp)
+```
+
+```{r}
+clusterings$RPPAArray$clusinfo
+```
+
+```{r}
+?pam
 ```
