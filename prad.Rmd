@@ -252,3 +252,13 @@ for (clustering in clusterings) {
 1.  Un barplot per ogni clustering in cui per ogni subtype indichiamo quante persone sono in quel subtype, comparando con i risultati di iCluster.
 2.  Tabelle tabelle tabelle
 3.  Cluster plot mappando su 2 dimensioni (t-SNE???????)
+
+```{r}
+par(mfrow = c(2, 3))
+
+for (clustering in clusterings) {
+	barplot(table(clustering$clustering),
+		col = c("#5D2A42", "#FB6376", "#FCB1A6"),
+		main = "AAAA")
+}
+```
