@@ -1,3 +1,18 @@
+---
+title: "Bioinformatics project (2022-2023)"
+author: "Samuele Bompani, Luigi Foscari"
+date: "May 2023"
+output:
+  html_notebook:
+    toc: yes
+    number_sections: yes
+    toc_float: yes
+    theme: cerulean
+    fig_caption: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
 # Install and load packages
 
 First of all, we need to install all the packages needed for this lesson (it will take a while):
@@ -6,18 +21,19 @@ First of all, we need to install all the packages needed for this lesson (it wil
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 
-BiocManager::install("curatedTCGAData");
-BiocManager::install("TCGAutils");
-# BiocManager::install("BioinformaticsFMRP/TCGAbiolinks")
-BiocManager::install("TCGAbiolinks")
-BiocManager::install("NetPreProc");
-BiocManager::install("NEMO"); # [GROUP]
-
-install.packages("SNFtool");
-install.packages("caret");
-install.packages("cluster");
-install.packages("mclustcomp");
-install.packages("factoextra");
+BiocManager::install(
+  c("curatedTCGAData",
+    "TCGAutils",
+    "TCGAbiolinks",
+    "NetPreProc",
+    "remotes",
+    "Shamir-Lab/NEMO/NEMO",
+    "SNFtool",
+    "caret",
+    "cluster",
+    "mclustcomp"),
+  ask = FALSE
+);
 ```
 
 Now we can load the packages:
@@ -32,7 +48,6 @@ library("caret");
 library("cluster"); #pam
 library("mclustcomp");
 library("NEMO");
-library("factoextra");
 ```
 
 # Multi-omics data (1)
@@ -42,8 +57,10 @@ Download the dataset:
 ```{r}
 assays <- c("miRNASeqGene", "RNASeq2Gene", "RPPAArray");
 mo <- curatedTCGAData(diseaseCode = "PRAD", 
-                        assays = assays, 
-                        version = "2.0.1", dry.run = FALSE);
+                      assays = assays, 
+                      version = "2.0.1",
+                      dry.run = FALSE,
+                      verbose = FALSE);
 
 mo <- mo[, , paste0("PRAD", "_", assays, "-20160128")];
 mo;
@@ -143,37 +160,35 @@ subtypes <- subtypes[rownames(complete[[1]]),];
 # Print number of samples for each subtype:
 table(subtypes$Subtype_Integrative)
 ```
-
-# Similarity Network Fusion (5)
-
 ```{r}
 # Compute similarity matrix for each data source using the scaled
 # exponential euclidean distance:
 W_list <- list();
-for(i in 1:length(complete)){
+for(i in 1:length(complete)) {
     Dist <- (dist2(as.matrix(complete[[i]]), as.matrix(complete[[i]])))^(1/2);
     W_list[[i]] <- affinityMatrix(Dist);
 }
-    
+```
+
+# Similarity Network Fusion (5)
+
+```{r}
 # Integration of multi-omics data using Similarity Network Fusion:
-# t is the number of iterations and K is the number of neighbours to 
-# consider to compute the local similarity matrix:
 M_snf <- SNF(W_list, K=20, t=20)
 ```
 
 # Mean Fusion (6)
 
 ```{r}
-# Do not use 'complete', but 'W_list' because the former is the raw data,
-# the latter are the similarity (square) matrices.
+# Integration of multi-omics data using the average
 M_mean <- Reduce("+", W_list) / length(W_list)
 ```
 
 # NEMO (7)
 
 ```{r}
+# Integration of multi-omics data using NEMO
 M_nemo <- nemo.affinity.graph(W_list, k=20)
-# M_nemo_2 <- nemo.clustering(complete, num.neighbors=20)
 ```
 
 # PAM (8)
@@ -182,36 +197,31 @@ M_nemo <- nemo.affinity.graph(W_list, k=20)
 k <- length(unique(na.omit(subtypes$Subtype_Integrative)));
 clusterings = list();
 
-# a
+# OMIC (a)
 for (i in 1:3) {
 	dist <- 1 - NetPreProc::Prob.norm(W_list[[i]]);
-	res <- pam(dist, k=k, diss=TRUE);
-	clusterings <- append(clusterings, list(res));
+	D <- as.dist(dist);
+	clusterings[assays[[i]]] <- list(pam(D, k=k));
 }
 
-# b
+# MEAN (b)
 dist <- 1 - NetPreProc::Prob.norm(M_mean);
-res <- pam(dist, k=k, diss=TRUE);
-clusterings <- append(clusterings, list(res));
+D <- as.dist(dist);
+clusterings$mean <- pam(D, k=k);
 
-# c
-# 'diss' should be FALSE because SNF computes a similarity matrix,
-# not a dissimilarity (aka distance) matrix. BUT if we don't put
-# diss=TRUE then the number of medoids is huge...???
-dist <- 1 - NetPreProc::Prob.norm(M_snf);
-res <- pam(M_snf, k=k, diss=TRUE);
-clusterings <- append(clusterings, list(res));
+# SNF (c)
+D <- as.dist(M_snf);
+clusterings$snf <- pam(D, k=k);
 
-# d
+?as.dist
+
+# NEMO (d)
 dist <- 1 - NetPreProc::Prob.norm(M_nemo);
-res <- pam(dist, k=k, diss=TRUE);
-clusterings <- append(clusterings, list(res));
-
-names(clusterings) <- list("miRNASeqGene", "RNASeq2Gene", "RPPAArray", "mean", "snf", "nemo")
+D <- as.dist(dist);
+clusterings$nemo <- pam(D, k=k)
 ```
 
 ```{r}
-
 print(clusterings$miRNASeqGene$medoids)
 print(clusterings$RNASeq2Gene$medoids)
 print(clusterings$RPPAArray$medoids)
@@ -268,9 +278,11 @@ par(oldp)
 ```
 
 ```{r}
-clusterings$RPPAArray$clusinfo
+for (name in names(clusterings)) {
+  print(name)
+  print(as.data.frame(clusterings[[name]]$clusinfo))
+}
 ```
-
 ```{r}
 ?pam
 ```
