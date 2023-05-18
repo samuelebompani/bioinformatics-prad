@@ -13,9 +13,18 @@ editor_options:
   markdown: 
     wrap: 72
 ---
-# Install and load packages
+Prostate cancer is the second most common cancer in men worldwide. Its incidence is influenced by age, family history, genetic factors, and race. Localized prostate cancer can vary in behavior, ranging from aggressive to indolent forms. Risk stratification systems have been developed to predict progression and guide treatment decisions based on clinical and pathological factors. Molecular features play a crucial role in improving risk stratification and treatment approaches.
 
-First of all, we need to install all the packages needed for this lesson (it will take a while):
+Advancements in technology have enabled the analysis of multiple omics data types, which are valuable for understanding diseases and personalized medicine. Integrative analysis of these data types can provide holistic insights and help classify cancer subtypes. While current subtyping methods are typically based on a single omic, the integration of multiple data types is necessary to enhance accuracy.
+
+There are three main approaches to multi-omics clustering: early, middle and late integration. Early integration combines all omic data into one matrix and applies single-omic clustering, but it overlooks the different distributions of values across omics. Middle integration builds a single model that considers all omics, incorporating joint dimension reduction and similarity-based analyses. Feature selection is essential due to the high dimensionality and complexity of the data, but similarity-based methods offer improved runtime and reduced reliance on feature selection. Late integration clusters each omic separately and then integrates the results, ignoring consistent interactions across omics. 
+
+Traditional approaches to multi-omics analysis have limitations. NEMO constructs inter-patient similarity matrices for each omic, integrates them into one network, and performs clustering based on the integrated network. This approach is computationally efficient and does not require iterative optimization.
+
+Despite progress, there is still much to uncover about the molecular basis of prostate cancer and its implications for risk stratification. Further research, using integrative multi-omics analysis and exploring novel clustering methods, such as NEMO or PVC, can enhance our understanding of prostate cancer and lead to more effective risk assessment and treatment strategies.
+
+
+# Install and load packages
 
 ```{r}
 if (!require("BiocManager", quietly = TRUE))
@@ -35,9 +44,6 @@ BiocManager::install(
   ask = FALSE
 );
 ```
-
-Now we can load the packages:
-
 ```{r}
 library("curatedTCGAData");
 library("TCGAbiolinks");
@@ -51,8 +57,6 @@ library("NEMO");
 ```
 
 # Multi-omics data (1)
-
-Download the dataset:
 
 ```{r}
 assays <- c("miRNASeqGene", "RNASeq2Gene", "RPPAArray");
