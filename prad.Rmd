@@ -151,19 +151,42 @@ subtypes <- as.data.frame(TCGAbiolinks::PanCancerAtlas_subtypes());
 subtypes <- subtypes[subtypes$cancer.type == "PRAD", ];
 
 # Remove all the rows with a Nan value in the Subtype_Integrative column
-subtypes <- subtypes[!is.na(subtypes$Subtype_Integrative),];
+na_subtypes = is.na(subtypes$Subtype_Integrative)
+subtypes <- subtypes[!na_subtypes,];
+
+# Keep only the patients from 'subtypes' in 'complete', but in the same order
+sub_select <- substr(subtypes$pan.samplesID, 1, 12) %in% rownames(complete[[1]]);
+subtypes <- subtypes[sub_select, ];
+
+# Reatain from the samples only the ones with a valid subtype
+subtype_filter <- substr(subtypes$pan.samplesID, 1, 12);
+for (i in 1:length(complete)) {
+  complete[[i]] <- subset(complete[[i]], rownames(complete[[i]]) %in% subtype_filter)
+}
 
 # Retain only primary solid tumors and select samples in common with omics data
 # (in the same order):
-subtypes <- subtypes[TCGAutils::TCGAsampleSelect(subtypes$pan.samplesID, "01"), ];
-sub_select <- substr(subtypes$pan.samplesID,1,12) %in% rownames(complete[[1]]);
-subtypes <- subtypes[sub_select, ];
-rownames(subtypes) <- substr(subtypes$pan.samplesID, 1, 12);
-subtypes <- subtypes[rownames(complete[[1]]),];
+
+# If in the barcode the sample ID is 01 it's a solid tumor
+#subtypes <- subtypes[TCGAutils::TCGAsampleSelect(subtypes$pan.samplesID, "01"), ];
+
+# Retain from the data only the patients in the interesting subtypes
+#sub_select <- substr(subtypes$pan.samplesID, 1, 12) %in% rownames(complete[[1]]);
+#subtypes <- subtypes[sub_select, ];
+
+#rownames(subtypes) <- substr(subtypes$pan.samplesID, 1, 12);
+#subtypes <- subtypes[rownames(complete[[1]]),]; # !!!
+
+# QUESTA RIGA TOGLIE I NA AGGIUNTI DALLA PRECENTE, MA NON È CHIARO PERCHÉ VENGANO AGGIUNTI
+# MA SE LI TOGLI POI I DATI DIVENTANO MENO DI QUELLI DI ICLUSTER E NON FUNZIONA PIÙ NIENTE
+# ?????????????????????????????????????????????????????
+#subtypes <- subtypes[!is.na(subtypes$Subtype_Integrative),];
+
 
 # Print number of samples for each subtype:
 table(subtypes$Subtype_Integrative)
 ```
+
 ```{r}
 # Compute similarity matrix for each data source using the scaled
 # exponential euclidean distance:
@@ -217,8 +240,6 @@ clusterings$mean <- pam(D, k=k);
 D <- as.dist(M_snf);
 clusterings$snf <- pam(D, k=k);
 
-?as.dist
-
 # NEMO (d)
 dist <- 1 - NetPreProc::Prob.norm(M_nemo);
 D <- as.dist(dist);
@@ -250,8 +271,6 @@ M_spectral <- SNFtool::spectralClustering(M_snf, K=k)
 # Graphs (11)
 
 ```{r}
-par(mfrow = c(2:3))
-
 # Covert disease subtypes to numeric vector:
 labels <- as.numeric(factor(subtypes$Subtype_Integrative, levels=unique(subtypes$Subtype_Integrative)));
 
@@ -270,11 +289,12 @@ for (clustering in clusterings) {
 ```{r}
 oldp <- par(mar=c(5.1, 8.1, 2.1, 1.1))
 
-data <- matrix(nrow = k, ncol = length(clusterings))
+data <- matrix(nrow = k, ncol = length(clusterings) + 1)
 for (i in 1:length(clusterings))
 	data[,i] <- as.vector(table(clusterings[[i]]$clustering))
+data[,length(clusterings) + 1] <- as.vector(table(labels))
 
-barplot(data, names.arg = names(clusterings), horiz=TRUE, las=1,
+barplot(data, names.arg = append(names(clusterings), "iCluster"), horiz=TRUE, las=1,
 	col = c("#5D2A42", "#FB6376", "#FCB1A6"),
 	main = "Patient distribution in clusters")
 
@@ -288,5 +308,5 @@ for (name in names(clusterings)) {
 }
 ```
 ```{r}
-?pam
+subtypes$Subtype_Integrative
 ```
