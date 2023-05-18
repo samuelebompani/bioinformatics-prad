@@ -158,30 +158,14 @@ subtypes <- subtypes[!na_subtypes,];
 sub_select <- substr(subtypes$pan.samplesID, 1, 12) %in% rownames(complete[[1]]);
 subtypes <- subtypes[sub_select, ];
 
-# Reatain from the samples only the ones with a valid subtype
+# Retain from the samples only the ones with a valid subtype
 subtype_filter <- substr(subtypes$pan.samplesID, 1, 12);
-for (i in 1:length(complete)) {
+for (i in 1:length(complete))
   complete[[i]] <- subset(complete[[i]], rownames(complete[[i]]) %in% subtype_filter)
-}
 
-# Retain only primary solid tumors and select samples in common with omics data
-# (in the same order):
-
-# If in the barcode the sample ID is 01 it's a solid tumor
-#subtypes <- subtypes[TCGAutils::TCGAsampleSelect(subtypes$pan.samplesID, "01"), ];
-
-# Retain from the data only the patients in the interesting subtypes
-#sub_select <- substr(subtypes$pan.samplesID, 1, 12) %in% rownames(complete[[1]]);
-#subtypes <- subtypes[sub_select, ];
-
-#rownames(subtypes) <- substr(subtypes$pan.samplesID, 1, 12);
-#subtypes <- subtypes[rownames(complete[[1]]),]; # !!!
-
-# QUESTA RIGA TOGLIE I NA AGGIUNTI DALLA PRECENTE, MA NON È CHIARO PERCHÉ VENGANO AGGIUNTI
-# MA SE LI TOGLI POI I DATI DIVENTANO MENO DI QUELLI DI ICLUSTER E NON FUNZIONA PIÙ NIENTE
-# ?????????????????????????????????????????????????????
-#subtypes <- subtypes[!is.na(subtypes$Subtype_Integrative),];
-
+# TODO: CHECK THAT complete[[i]] IS IN THE SAME ORDER AS subtype
+for (i in 1:length(complete))
+  complete[[i]] <- complete[[i]][, rownames(subtypes)]
 
 # Print number of samples for each subtype:
 table(subtypes$Subtype_Integrative)
