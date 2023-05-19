@@ -12,17 +12,7 @@ output:
 editor_options: 
   markdown: 
     wrap: 72
----
-Prostate cancer is the second most common cancer in men worldwide. Its incidence is influenced by age, family history, genetic factors, and race. Localized prostate cancer can vary in behavior, ranging from aggressive to indolent forms. Risk stratification systems have been developed to predict progression and guide treatment decisions based on clinical and pathological factors. Molecular features play a crucial role in improving risk stratification and treatment approaches.
-
-Advancements in technology have enabled the analysis of multiple omics data types, which are valuable for understanding diseases and personalized medicine. Integrative analysis of these data types can provide holistic insights and help classify cancer subtypes. While current subtyping methods are typically based on a single omic, the integration of multiple data types is necessary to enhance accuracy.
-
-There are three main approaches to multi-omics clustering: early, middle and late integration. Early integration combines all omic data into one matrix and applies single-omic clustering, but it overlooks the different distributions of values across omics. Middle integration builds a single model that considers all omics, incorporating joint dimension reduction and similarity-based analyses. Feature selection is essential due to the high dimensionality and complexity of the data, but similarity-based methods offer improved runtime and reduced reliance on feature selection. Late integration clusters each omic separately and then integrates the results, ignoring consistent interactions across omics. 
-
-Traditional approaches to multi-omics analysis have limitations. NEMO constructs inter-patient similarity matrices for each omic, integrates them into one network, and performs clustering based on the integrated network. This approach is computationally efficient and does not require iterative optimization.
-
-Despite progress, there is still much to uncover about the molecular basis of prostate cancer and its implications for risk stratification. Further research, using integrative multi-omics analysis and exploring novel clustering methods, such as NEMO or PVC, can enhance our understanding of prostate cancer and lead to more effective risk assessment and treatment strategies.
-
+---		
 
 # Install and load packages
 
@@ -61,7 +51,7 @@ library("NEMO");
 
 ```{r}
 assays <- c("miRNASeqGene", "RNASeq2Gene", "RPPAArray");
-mo <- curatedTCGAData(diseaseCode = "PRAD", assays = assays, version = "2.0.1", verbose = FALSE);
+mo <- curatedTCGAData(diseaseCode = "PRAD", assays = assays, dry.run = FALSE, version = "2.0.1", verbose = FALSE);
 mo <- mo[, , paste0("PRAD", "_", assays, "-20160128")];
 mo;
 ```
@@ -193,39 +183,28 @@ M_nemo <- nemo.affinity.graph(sim, k = 20)
 # PAM (8)
 
 ```{r}
-k <- length(unique(na.omit(subtypes$Subtype_Integrative)));
 clusterings = list();
+```
+
+```{r}
+k <- length(unique(na.omit(subtypes$Subtype_Integrative)));
 
 # OMIC (a)
 for (i in 1:3) {
 	dist <- 1 - NetPreProc::Prob.norm(sim[[i]]);
-	D <- as.dist(dist);
-	clusterings[assays[[i]]] <- list(pam(D, k = k));
+	clusterings[assays[[i]]] <- list(pam(dist, k = k, diss = TRUE));
 }
 
 # MEAN (b)
 dist <- 1 - NetPreProc::Prob.norm(M_mean);
-D <- as.dist(dist);
-clusterings$mean <- pam(D, k = k);
+clusterings$mean <- pam(dist, k = k, diss = TRUE, keep.data=TRUE);
 
 # SNF (c)
-D <- as.dist(M_snf);
-clusterings$snf <- pam(D, k = k);
+clusterings$snf_pam <- pam(1 - M_snf, k = k, diss = TRUE, keep.data=TRUE);
 
 # NEMO (d)
 dist <- 1 - NetPreProc::Prob.norm(M_nemo);
-D <- as.dist(dist);
-clusterings$nemo <- pam(D, k = k)
-```
-
-```{r}
-print(clusterings$miRNASeqGene$medoids)
-print(clusterings$RNASeq2Gene$medoids)
-print(clusterings$RPPAArray$medoids)
-
-print(clusterings$mean$medoids)
-print(clusterings$snf$medoids)
-print(clusterings$nemo$medoids)
+clusterings$nemo_pam <- pam(dist, k = k, diss = TRUE, keep.data=TRUE)
 ```
 
 # NEMO clustering (9)
@@ -237,26 +216,26 @@ clusterings$nemo_clustering$clustering <- nemo.clustering(sim, num.clusters = k)
 # Spectral clustering (10)
 
 ```{r}
-clusterings$spectral$clustering <- SNFtool::spectralClustering(M_snf, K = k)
+clusterings$snf_spectral$clustering <- SNFtool::spectralClustering(M_snf, K = k)
 ```
 
 # Graphs (11)
 
 ```{r}
-# Covert disease subtypes to numeric vector:
 labels <- as.numeric(factor(subtypes$Subtype_Integrative, levels = unique(subtypes$Subtype_Integrative)));
 
-# Compute measures:
-types <- c("rand", "adjrand", "nmi1");
-for (clustering in clusterings) {
-	metrics.pam <- mclustcomp(clustering$clustering, labels, types=types);
-	print(as.data.frame(metrics.pam))
+types <- c("rand", "adjrand", "nmi1", "jent");
+for (type in types) {
+	df <- stack(lapply(clusterings, function(c) mclustcomp(c$clustering, labels, types = type)$scores))
+	row.names(df) <- df$ind
+	df$ind <- NULL
+	names(df) <- c(type)
+	df <- df[order(df[, type], decreasing = TRUE), , drop = FALSE]
+	print(df)
 }
-```
 
-1.  Un barplot per ogni clustering in cui per ogni subtype indichiamo quante persone sono in quel subtype, comparando con i risultati di iCluster.
-2.  Tabelle tabelle tabelle
-3.  Cluster plot mappando su 2 dimensioni (t-SNE???????)
+?mclustcomp
+```
 
 ```{r}
 oldp <- par(mar = c(5.1, 8.1, 2.1, 1.1))
@@ -278,4 +257,8 @@ for (name in names(clusterings)) {
   print(name)
   print(as.data.frame(clusterings[[name]]$clusinfo))
 }
+```
+```{r}
+BiocManager::install("Seurat")
+library("DimPlot")
 ```
