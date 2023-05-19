@@ -44,6 +44,7 @@ BiocManager::install(
   ask = FALSE
 );
 ```
+
 ```{r}
 library("curatedTCGAData");
 library("TCGAbiolinks");
@@ -60,12 +61,7 @@ library("NEMO");
 
 ```{r}
 assays <- c("miRNASeqGene", "RNASeq2Gene", "RPPAArray");
-mo <- curatedTCGAData(diseaseCode = "PRAD", 
-                      assays = assays, 
-                      version = "2.0.1",
-                      dry.run = FALSE,
-                      verbose = FALSE);
-
+mo <- curatedTCGAData(diseaseCode = "PRAD", assays = assays, version = "2.0.1", verbose = FALSE);
 mo <- mo[, , paste0("PRAD", "_", assays, "-20160128")];
 mo;
 ```
@@ -81,7 +77,6 @@ mo <- mo[, primary, ];
 # corresponds to the first 12 characters of the barcodes for TCGA data):
 check_rep <- anyReplicated(mo);
 print(check_rep);
-
 ```
 
 ```{r}
@@ -97,7 +92,7 @@ complete <- intersectColumns(mo);
 complete <- assays(complete);
 
 # Obtain matrices samples x features:
-complete <- lapply(complete, FUN=t)
+complete <- lapply(complete, FUN = t)
 
 ```
 
@@ -108,39 +103,32 @@ complete[[3]] <- complete[[3]][, colSums(is.na(complete[[3]])) == 0];
 # Remove features with near zero variance and retain top 100 features 
 # having higher variance:
 nf <- 100;
-for(i in 1:length(complete)){
-    
+for(i in 1:length(complete)) {
     idx <- caret::nearZeroVar(complete[[i]])
     message(paste("Removed ", length(idx), "features from", names(complete)[i]));
-    if(length(idx) != 0){
+    if(length(idx) != 0)
         complete[[i]] <- complete[[i]][, -idx];
-    }
 
     if(ncol(complete[[i]]) <= nf) next
     
     vars <- apply(complete[[i]], 2, var);
-    idx <- sort(vars, index.return=TRUE, decreasing = TRUE)$ix;
+    idx <- sort(vars, index.return = TRUE, decreasing = TRUE)$ix;
     
     complete[[i]] <- complete[[i]][, idx[1:nf]];
-    
 }
 
 # Perform features standardization using z-score:
-zscore <- function(data){
-    
+zscore <- function(data) {
     zscore_vec <- function(x) { return ((x - mean(x)) / sd(x))}
     data <- apply(data, 2, zscore_vec)
-    
-    
     return(data)
 }
 
 complete <- lapply(complete, zscore);
 
 # Clean barcodes retaining only "Project-TSS-Participant":
-for(v in 1:length(complete)){
+for(v in 1:length(complete))
     rownames(complete[[v]]) <- substr(rownames(complete[[v]]), 1, 12);
-}
 ```
 
 # Download the desease subtypes (3 - 4)
@@ -159,13 +147,13 @@ sub_select <- substr(subtypes$pan.samplesID, 1, 12) %in% rownames(complete[[1]])
 subtypes <- subtypes[sub_select, ];
 
 # Retain from the samples only the ones with a valid subtype
-subtype_filter <- substr(subtypes$pan.samplesID, 1, 12);
+sub_filter <- substr(subtypes$pan.samplesID, 1, 12);
 for (i in 1:length(complete))
-  complete[[i]] <- subset(complete[[i]], rownames(complete[[i]]) %in% subtype_filter)
+  complete[[i]] <- subset(complete[[i]], rownames(complete[[i]]) %in% sub_filter)
 
 # Ensure samples are in the same order as subtypes
 for (i in 1:length(complete))
-  complete[[i]] <- complete[[i]][subtype_filter, ]
+  complete[[i]] <- complete[[i]][sub_filter, ]
 
 # Print number of samples for each subtype:
 table(subtypes$Subtype_Integrative)
@@ -174,10 +162,10 @@ table(subtypes$Subtype_Integrative)
 ```{r}
 # Compute similarity matrix for each data source using the scaled
 # exponential euclidean distance:
-W_list <- list();
+sim <- list();
 for(i in 1:length(complete)) {
     Dist <- (dist2(as.matrix(complete[[i]]), as.matrix(complete[[i]])))^(1/2);
-    W_list[[i]] <- affinityMatrix(Dist);
+    sim[[i]] <- affinityMatrix(Dist);
 }
 ```
 
@@ -185,21 +173,21 @@ for(i in 1:length(complete)) {
 
 ```{r}
 # Integration of multi-omics data using Similarity Network Fusion:
-M_snf <- SNF(W_list, K=20, t=20)
+M_snf <- SNF(sim, K = 20, t = 20)
 ```
 
 # Mean Fusion (6)
 
 ```{r}
 # Integration of multi-omics data using the average
-M_mean <- Reduce("+", W_list) / length(W_list)
+M_mean <- Reduce("+", sim) / length(sim)
 ```
 
 # NEMO (7)
 
 ```{r}
 # Integration of multi-omics data using NEMO
-M_nemo <- nemo.affinity.graph(W_list, k=20)
+M_nemo <- nemo.affinity.graph(sim, k = 20)
 ```
 
 # PAM (8)
@@ -210,24 +198,24 @@ clusterings = list();
 
 # OMIC (a)
 for (i in 1:3) {
-	dist <- 1 - NetPreProc::Prob.norm(W_list[[i]]);
+	dist <- 1 - NetPreProc::Prob.norm(sim[[i]]);
 	D <- as.dist(dist);
-	clusterings[assays[[i]]] <- list(pam(D, k=k));
+	clusterings[assays[[i]]] <- list(pam(D, k = k));
 }
 
 # MEAN (b)
 dist <- 1 - NetPreProc::Prob.norm(M_mean);
 D <- as.dist(dist);
-clusterings$mean <- pam(D, k=k);
+clusterings$mean <- pam(D, k = k);
 
 # SNF (c)
 D <- as.dist(M_snf);
-clusterings$snf <- pam(D, k=k);
+clusterings$snf <- pam(D, k = k);
 
 # NEMO (d)
 dist <- 1 - NetPreProc::Prob.norm(M_nemo);
 D <- as.dist(dist);
-clusterings$nemo <- pam(D, k=k)
+clusterings$nemo <- pam(D, k = k)
 ```
 
 ```{r}
@@ -243,20 +231,20 @@ print(clusterings$nemo$medoids)
 # NEMO clustering (9)
 
 ```{r}
-M_nemo_clustering <- nemo.clustering(W_list)
+clusterings$nemo_clustering$clustering <- nemo.clustering(sim, num.clusters = k)
 ```
 
 # Spectral clustering (10)
 
 ```{r}
-M_spectral <- SNFtool::spectralClustering(M_snf, K=k)
+clusterings$spectral$clustering <- SNFtool::spectralClustering(M_snf, K = k)
 ```
 
 # Graphs (11)
 
 ```{r}
 # Covert disease subtypes to numeric vector:
-labels <- as.numeric(factor(subtypes$Subtype_Integrative, levels=unique(subtypes$Subtype_Integrative)));
+labels <- as.numeric(factor(subtypes$Subtype_Integrative, levels = unique(subtypes$Subtype_Integrative)));
 
 # Compute measures:
 types <- c("rand", "adjrand", "nmi1");
@@ -271,15 +259,15 @@ for (clustering in clusterings) {
 3.  Cluster plot mappando su 2 dimensioni (t-SNE???????)
 
 ```{r}
-oldp <- par(mar=c(5.1, 8.1, 2.1, 1.1))
+oldp <- par(mar = c(5.1, 8.1, 2.1, 1.1))
 
 data <- matrix(nrow = k, ncol = length(clusterings) + 1)
 for (i in 1:length(clusterings))
 	data[,i] <- as.vector(table(clusterings[[i]]$clustering))
 data[,length(clusterings) + 1] <- as.vector(table(labels))
 
-barplot(data, names.arg = append(names(clusterings), "iCluster"), horiz=TRUE, las=1,
-	col = c("#5D2A42", "#FB6376", "#FCB1A6"),
+barplot(data, names.arg = append(names(clusterings), "iCluster"),
+  horiz = TRUE, las = 1, col = c("#5D2A42", "#FB6376", "#FCB1A6"),
 	main = "Patient distribution in clusters")
 
 par(oldp)
