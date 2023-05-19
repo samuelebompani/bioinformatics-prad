@@ -258,7 +258,19 @@ for (name in names(clusterings)) {
   print(as.data.frame(clusterings[[name]]$clusinfo))
 }
 ```
+
 ```{r}
-BiocManager::install("Seurat")
-library("DimPlot")
+install.packages('tsne')
+library("tsne")
+```
+
+```{r}
+reduction <- tsne(complete[[1]], k=2)
+```
+
+
+```{r}
+for (clustering in clusterings) {
+	plot(reduction, col = clustering$clustering, xlab = "x", ylab = "y")
+}
 ```
