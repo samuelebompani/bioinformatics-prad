@@ -163,9 +163,9 @@ subtype_filter <- substr(subtypes$pan.samplesID, 1, 12);
 for (i in 1:length(complete))
   complete[[i]] <- subset(complete[[i]], rownames(complete[[i]]) %in% subtype_filter)
 
-# TODO: CHECK THAT complete[[i]] IS IN THE SAME ORDER AS subtype
+# Ensure samples are in the same order as subtypes
 for (i in 1:length(complete))
-  complete[[i]] <- complete[[i]][, rownames(subtypes)]
+  complete[[i]] <- complete[[i]][subtype_filter, ]
 
 # Print number of samples for each subtype:
 table(subtypes$Subtype_Integrative)
@@ -290,7 +290,4 @@ for (name in names(clusterings)) {
   print(name)
   print(as.data.frame(clusterings[[name]]$clusinfo))
 }
-```
-```{r}
-subtypes$Subtype_Integrative
 ```
