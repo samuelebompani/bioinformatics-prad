@@ -30,7 +30,8 @@ BiocManager::install(
     "SNFtool",
     "caret",
     "cluster",
-    "mclustcomp"),
+    "mclustcomp",
+    "tsne"),
   ask = FALSE
 );
 ```
@@ -45,6 +46,7 @@ library("caret");
 library("cluster"); #pam
 library("mclustcomp");
 library("NEMO");
+library("tsne");
 ```
 
 # Multi-omics data (1)
@@ -59,6 +61,7 @@ mo;
 # Filtering (2)
 
 ```{r warning=FALSE}
+# Consider only primary solid tumors:
 primary <- TCGAutils::TCGAsampleSelect(colnames(mo), c("01"));
 mo <- mo[, primary, ];
 
@@ -128,34 +131,42 @@ for(v in 1:length(complete))
 subtypes <- as.data.frame(TCGAbiolinks::PanCancerAtlas_subtypes());
 subtypes <- subtypes[subtypes$cancer.type == "PRAD", ];
 
-# Remove all the rows with a Nan value in the Subtype_Integrative column
-na_subtypes = is.na(subtypes$Subtype_Integrative)
-subtypes <- subtypes[!na_subtypes,];
+# Retain only primary solid tumors and select samples in common with omics data
+# (in the same order):
+subtypes <- subtypes[TCGAutils::TCGAsampleSelect(subtypes$pan.samplesID, "01"), ];
 
-# Keep only the patients from 'subtypes' in 'complete', but in the same order
+# Retain from the subtypes only information regarding samples in the multi-omic dataset
 sub_select <- substr(subtypes$pan.samplesID, 1, 12) %in% rownames(complete[[1]]);
 subtypes <- subtypes[sub_select, ];
 
-# Retain from the samples only the ones with a valid subtype
-sub_filter <- substr(subtypes$pan.samplesID, 1, 12);
-for (i in 1:length(complete))
-  complete[[i]] <- subset(complete[[i]], rownames(complete[[i]]) %in% sub_filter)
+# Clean row names
+rownames(subtypes) <- substr(subtypes$pan.samplesID, 1, 12);
 
-# Ensure samples are in the same order as subtypes
-for (i in 1:length(complete))
-  complete[[i]] <- complete[[i]][sub_filter, ]
+# Remove subtypes without an associate multi-omic sample
+subtypes <- subtypes[rownames(complete[[1]]),];
+
+# Remove subtypes without an associated iCluster molecular subtype
+subtypes <- subtypes[!is.na(subtypes$Subtype_Integrative), ];
+
+# Retain from the multi-omics dataset only samples having an associated subtype
+for (i in 1:length(complete)) complete[[i]] <- complete[[i]][rownames(subtypes), ]
 
 # Print number of samples for each subtype:
-table(subtypes$Subtype_Integrative)
+table(subtypes$Subtype_Integrative);
 ```
 
 ```{r}
-# Compute similarity matrix for each data source using the scaled
-# exponential euclidean distance:
+# Compute similarity matrix for each data source using the scaled exponential euclidean distance:
 sim <- list();
 for(i in 1:length(complete)) {
-    Dist <- (dist2(as.matrix(complete[[i]]), as.matrix(complete[[i]])))^(1/2);
-    sim[[i]] <- affinityMatrix(Dist);
+	# Compute the distance between the rows of the matrix
+    dist <- (dist2(as.matrix(complete[[i]]), as.matrix(complete[[i]])))^(1/2);
+    
+    # Compute the similarity matrix
+    sim[[i]] <- affinityMatrix(dist);
+        
+    # Normalize in L1 norm
+    # sim[[i]] <- sweep(sim[[i]], 1, rowSums(sim[[i]]), FUN = "/");
 }
 ```
 
@@ -177,7 +188,12 @@ M_mean <- Reduce("+", sim) / length(sim)
 
 ```{r}
 # Integration of multi-omics data using NEMO
-M_nemo <- nemo.affinity.graph(sim, k = 20)
+# Constructs a single affinity graph measuring similarity across different omics.
+# the given parameter is a list of the data to be clustered, where each an entry
+# is a matrix of *features x samples* and k the number of neighbors to use for each omic.
+
+t_complete <- lapply(complete, FUN = t)
+M_nemo <- nemo.affinity.graph(t_complete, k = 20)
 ```
 
 # PAM (8)
@@ -192,25 +208,33 @@ k <- length(unique(na.omit(subtypes$Subtype_Integrative)));
 # OMIC (a)
 for (i in 1:3) {
 	dist <- 1 - NetPreProc::Prob.norm(sim[[i]]);
-	clusterings[assays[[i]]] <- list(pam(dist, k = k, diss = TRUE));
+	clusterings[assays[[i]]] <- list(pam(dist, k = k, diss = TRUE, keep.diss = TRUE));
 }
 
 # MEAN (b)
 dist <- 1 - NetPreProc::Prob.norm(M_mean);
-clusterings$mean <- pam(dist, k = k, diss = TRUE, keep.data=TRUE);
+clusterings$mean <- pam(dist, k = k, diss = TRUE, keep.diss = TRUE);
 
 # SNF (c)
-clusterings$snf_pam <- pam(1 - M_snf, k = k, diss = TRUE, keep.data=TRUE);
+dist <- 1 - M_snf
+clusterings$snf_pam <- pam(dist, k = k, diss = TRUE, keep.diss = TRUE);
 
 # NEMO (d)
 dist <- 1 - NetPreProc::Prob.norm(M_nemo);
-clusterings$nemo_pam <- pam(dist, k = k, diss = TRUE, keep.data=TRUE)
+clusterings$nemo_pam <- pam(dist, k = k, diss = TRUE, keep.diss = TRUE)
+```
+
+```{r}
+# print(sim[1])
+a <- pam(1 - NetPreProc::Prob.norm(M_nemo), k = k, diss = TRUE, keep.diss = TRUE);
+s <- silhouette(a)
+plot(s, main = "silhouette")
 ```
 
 # NEMO clustering (9)
 
 ```{r}
-clusterings$nemo_clustering$clustering <- nemo.clustering(sim, num.clusters = k)
+clusterings$nemo_spectral$clustering <- nemo.clustering(t_complete, num.clusters = k)
 ```
 
 # Spectral clustering (10)
@@ -233,8 +257,6 @@ for (type in types) {
 	df <- df[order(df[, type], decreasing = TRUE), , drop = FALSE]
 	print(df)
 }
-
-?mclustcomp
 ```
 
 ```{r}
@@ -247,7 +269,7 @@ data[,length(clusterings) + 1] <- as.vector(table(labels))
 
 barplot(data, names.arg = append(names(clusterings), "iCluster"),
   horiz = TRUE, las = 1, col = c("#5D2A42", "#FB6376", "#FCB1A6"),
-	main = "Patient distribution in clusters")
+	main = "Sample distribution in clusters")
 
 par(oldp)
 ```
@@ -260,17 +282,17 @@ for (name in names(clusterings)) {
 ```
 
 ```{r}
-install.packages('tsne')
-library("tsne")
+reduction <- tsne(complete[[2]], k=2)
 ```
 
 ```{r}
-reduction <- tsne(complete[[1]], k=2)
+for (name in names(clusterings))
+	plot(reduction, col = clusterings[[name]]$clustering, xlab = "x", ylab = "y", main = name)
+plot(reduction, col = labels, xlab = "x", ylab = "y", main = "iCluster")
 ```
-
-
 ```{r}
-for (clustering in clusterings) {
-	plot(reduction, col = clustering$clustering, xlab = "x", ylab = "y")
-}
+pcairis <- princomp(complete[[3]])
+for (name in names(clusterings))
+	plot(pcairis$scores, col = clusterings[[name]]$clustering, main = name)
+plot(pcairis$scores, col = labels, main = "iCluster")
 ```
