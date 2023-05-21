@@ -3,14 +3,19 @@ title: "Bioinformatics project (2022-2023)"
 author: "Samuele Bompani, Luigi Foscari"
 date: "May 2023"
 output:
+  html_document:
+    toc: yes
+    df_print: paged
   html_notebook:
     toc: yes
     number_sections: yes
     toc_float: yes
     theme: cerulean
     fig_caption: yes
-editor_options: 
-  markdown: 
+  pdf_document:
+    toc: yes
+editor_options:
+  markdown:
     wrap: 72
 ---		
 
@@ -217,50 +222,35 @@ clusterings$mean <- pam(dist, k = k, diss = TRUE, keep.diss = TRUE);
 
 # SNF (c)
 dist <- 1 - M_snf
-clusterings$snf_pam <- pam(dist, k = k, diss = TRUE, keep.diss = TRUE);
+clusterings$SNFpam <- pam(dist, k = k, diss = TRUE, keep.diss = TRUE);
 
 # NEMO (d)
 dist <- 1 - NetPreProc::Prob.norm(M_nemo);
-clusterings$nemo_pam <- pam(dist, k = k, diss = TRUE, keep.diss = TRUE)
-```
-
-```{r}
-# print(sim[1])
-a <- pam(1 - NetPreProc::Prob.norm(M_nemo), k = k, diss = TRUE, keep.diss = TRUE);
-s <- silhouette(a)
-plot(s, main = "silhouette")
+clusterings$NEMOpam <- pam(dist, k = k, diss = TRUE, keep.diss = TRUE)
 ```
 
 # NEMO clustering (9)
 
 ```{r}
-clusterings$nemo_spectral$clustering <- nemo.clustering(t_complete, num.clusters = k)
+clusterings$NEMOspectral$clustering <- nemo.clustering(t_complete, num.clusters = k)
 ```
 
 # Spectral clustering (10)
 
 ```{r}
-clusterings$snf_spectral$clustering <- SNFtool::spectralClustering(M_snf, K = k)
+clusterings$SNFspectral$clustering <- SNFtool::spectralClustering(M_snf, K = k)
 ```
 
 # Graphs (11)
 
 ```{r}
-labels <- as.numeric(factor(subtypes$Subtype_Integrative, levels = unique(subtypes$Subtype_Integrative)));
-
-types <- c("rand", "adjrand", "nmi1", "jent");
-for (type in types) {
-	df <- stack(lapply(clusterings, function(c) mclustcomp(c$clustering, labels, types = type)$scores))
-	row.names(df) <- df$ind
-	df$ind <- NULL
-	names(df) <- c(type)
-	df <- df[order(df[, type], decreasing = TRUE), , drop = FALSE]
-	print(df)
-}
+df <- as.data.frame(lapply(clusterings, function (c) mclustcomp(c$clustering, labels, types = types)$scores))
+row.names(df) <- types
+df
 ```
 
 ```{r}
-oldp <- par(mar = c(5.1, 8.1, 2.1, 1.1))
+oldp <- par(mar = c(1., 8.1, 2.1, 1.1))
 
 data <- matrix(nrow = k, ncol = length(clusterings) + 1)
 for (i in 1:length(clusterings))
@@ -269,30 +259,15 @@ data[,length(clusterings) + 1] <- as.vector(table(labels))
 
 barplot(data, names.arg = append(names(clusterings), "iCluster"),
   horiz = TRUE, las = 1, col = c("#5D2A42", "#FB6376", "#FCB1A6"),
-	main = "Sample distribution in clusters")
+	main = "Sample distribution in clusters", xaxt='n')
 
 par(oldp)
 ```
 
 ```{r}
-for (name in names(clusterings)) {
-  print(name)
-  print(as.data.frame(clusterings[[name]]$clusinfo))
-}
+clusplot(princomp(complete[[3]])$scores, clusterings$SNFpam$clustering, main = "SNF (PAM)")
 ```
 
 ```{r}
-reduction <- tsne(complete[[2]], k=2)
-```
-
-```{r}
-for (name in names(clusterings))
-	plot(reduction, col = clusterings[[name]]$clustering, xlab = "x", ylab = "y", main = name)
-plot(reduction, col = labels, xlab = "x", ylab = "y", main = "iCluster")
-```
-```{r}
-pcairis <- princomp(complete[[3]])
-for (name in names(clusterings))
-	plot(pcairis$scores, col = clusterings[[name]]$clustering, main = name)
-plot(pcairis$scores, col = labels, main = "iCluster")
+plot(tsne(complete[[3]], k = 2), col = clusterings$SNFpam$clustering, xlab = "", ylab = "", main = "SNF (PAM)")
 ```
