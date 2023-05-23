@@ -17,7 +17,7 @@ output:
 editor_options:
   markdown:
     wrap: 72
----		
+---
 
 # Install and load packages
 
@@ -239,6 +239,11 @@ clusterings$SNFspectral$clustering <- SNFtool::spectralClustering(M_snf, K = k)
 ```
 
 # Graphs (11)
+
+```{r}
+# iCluster results
+labels <- as.numeric(factor(subtypes$Subtype_Integrative, levels=unique(subtypes$Subtype_Integrative)));
+```
 
 ```{r}
 df <- as.data.frame(lapply(clusterings, function (c) as.vector(table(c$clustering))))
